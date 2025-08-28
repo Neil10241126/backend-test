@@ -43,7 +43,12 @@ const createUser = async (req, res) => {
     email: req.body.email
   }
   users.push(newUser)
-  res.status(201).json({ message: 'User created', user: newUser })
+
+  res.status(201).json({
+    status: 201,
+    code: 'CREATE_SUCCESS',
+    message: 'User created successful',
+  })
 }
 
 // Update a user
