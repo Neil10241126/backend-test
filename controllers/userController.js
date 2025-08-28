@@ -59,7 +59,11 @@ const updateUser = async (req, res) => {
 
   user.name = req.body.name
   user.email = req.body.email
-  res.status(201).json({ message: 'User updated', user })
+  res.status(201).json({
+    status: 201,
+    code: 'UPDATE_SUCCESS',
+    message: 'User updated successful',
+  })
 }
 
 // Delete a user

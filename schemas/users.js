@@ -11,7 +11,10 @@ const createUserSchema = z.object({
     .max(50, { message: 'Email must be less than 50 characters' }),
 })
 
+const updateUserSchema = createUserSchema
+
 
 module.exports = {
-  createUserSchema
+  createUserSchema,
+  updateUserSchema
  }
