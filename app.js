@@ -4,7 +4,7 @@ const userRouter = require('./routers/users');
 
 app.use(express.json())
 
-app.use('/api/users', userRouter);
+app.use('/api/v1/users', userRouter);
 
 app.listen(8080, () => {
   console.log('Server is running on port 8080')
