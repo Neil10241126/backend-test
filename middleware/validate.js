@@ -10,7 +10,7 @@ const validate = (schema, source = 'body') => (
       message: i.message
     }))
 
-    res.status(422).json({
+    return res.status(422).json({
       status: 422,
       code: 'VALIDATION_ERROR',
       message: 'Validation failed',
@@ -22,6 +22,4 @@ const validate = (schema, source = 'body') => (
   next()
 }
 
-module.exports = {
-  validate
-}
+export { validate }

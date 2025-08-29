@@ -1,4 +1,4 @@
-const { z } = require('zod')
+import { z } from 'zod';
 
 const createUserSchema = z.object({
   name: z.string()
@@ -9,12 +9,11 @@ const createUserSchema = z.object({
     .email({ message: 'Invalid email address' })
     .toLowerCase()
     .max(50, { message: 'Email must be less than 50 characters' }),
-})
+});
 
-const updateUserSchema = createUserSchema
+const updateUserSchema = createUserSchema;
 
-
-module.exports = {
+export {
   createUserSchema,
   updateUserSchema
- }
+ };

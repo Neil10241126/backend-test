@@ -1,8 +1,9 @@
-const express = require('express');
+import express from 'express';
+import userRouter from './routers/users.js';
+import swaggerUi from 'swagger-ui-express';
+import swaggerDocs from './config/swaggar.js';
+
 const app = express();
-const userRouter = require('./routers/users');
-const swaggerUi = require('swagger-ui-express');
-const swaggerDocs = require('./config/swaggar');
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 

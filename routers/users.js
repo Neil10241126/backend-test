@@ -1,18 +1,9 @@
-const express = require('express')
-const router = express.Router()
-const {
-  createUserSchema,
-  updateUserSchema
-} = require('../schemas/users')
-const { validate } = require('../middleware/validate')
+import express from 'express';
+import { createUserSchema, updateUserSchema } from '../schemas/users.js';
+import { validate } from '../middleware/validate.js';
+import { getUsers, getUserById, createUser, updateUser, deleteUser } from '../controllers/userController.js';
 
-const {
-  getUsers,
-  getUserById,
-  createUser,
-  updateUser,
-  deleteUser
-} = require('../controllers/userController')
+const router = express.Router();
 
 router.get('/', getUsers);
 router.get('/:id', getUserById);
@@ -20,4 +11,4 @@ router.post('/', validate(createUserSchema), createUser);
 router.put('/:id', validate(updateUserSchema), updateUser);
 router.delete('/:id', deleteUser);
 
-module.exports = router
+export default router;
