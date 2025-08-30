@@ -1,5 +1,6 @@
 import express from 'express';
 import userRouter from './routers/users.js';
+import authRouter from './routers/auth.js';
 import swaggerUi from 'swagger-ui-express';
 import swaggerDocs from './config/swaggar.js';
 import cors from './config/cors.js';
@@ -11,6 +12,7 @@ app.use(express.json())
 app.use(cors)
 
 app.use('/api/v1/users', userRouter);
+app.use('/api/v1/auth', authRouter);
 
 app.listen(8080, () => {
   console.log('Server is running on port 8080')
