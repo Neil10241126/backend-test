@@ -1,4 +1,5 @@
 import argon2 from 'argon2';
+import jwt from 'jsonwebtoken';
 import { uuidv7 } from 'uuidv7';
 import query from '../db/pool.js';
 
@@ -107,34 +108,46 @@ const login = async (req, res) => {
   const { email, password } = req.body
 
   const [rows] = await query(`
-    SELECT user_id, email, password
+    SELECT user_id, email, password, role
     FROM users
     WHERE email = ?
   `, [email])
 
-  if (rows.length === 0) {
-    return res.status(401).json({
-      status: 401,
-      code: 'EMAIL_NOT_FOUND',
-      message: 'Email not found',
-    })
-  }
+  if (rows.length === 0) res.status(401).json({ code: 'EMAIL_NOT_FOUND' })
 
   const user = rows[0]
   const ok = await argon2.verify(user.password, password)
 
-  if (!ok) {
-    return res.status(401).json({
-      status: 401,
-      code: 'PASSWORD_NOT_CORRECT',
-      message: 'Password not correct',
-    })
-  }
+  if (!ok) res.status(401).json({  code: 'PASSWORD_NOT_CORRECT' })
+
+  const accessToken = jwt.sign(
+    { userId: user.user_id, role: user.role },
+    process.env.JWT_SECRET,
+    {
+      algorithm: 'HS256',
+      expiresIn: '10m',
+      issuer: process.env.JWT_ISS,
+      audience: process.env.JWT_ACCESS_AUD
+    }
+  )
+
+  const refreshToken = jwt.sign(
+    { userId: user.user_id, email: user.email },
+    process.env.JWT_SECRET,
+    {
+      algorithm: 'HS256',
+      expiresIn: '7d',
+      issuer: process.env.JWT_ISS,
+      audience: process.env.JWT_REFRESH_AUD
+    }
+  )
 
   res.status(200).json({
     status: 200,
     code: 'SUCCESS',
     message: 'Sign in success',
+    accessToken,
+    refreshToken,
   })
 }
 
