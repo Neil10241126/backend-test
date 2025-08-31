@@ -248,9 +248,78 @@ const refreshToken = async (req, res) => {
   }
 }
 
+/**
+ * @openapi
+ * /api/v1/auth/update-password:
+ *   put:
+ *     tags: [Auth]
+ *     summary: Update a user's password
+ *     description: Update a user's password
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               password:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: "`SUCCESS`"
+ *       '401':
+ *         description: |
+ *           - `ACCESS_TOKEN_NOT_FOUND`: Access token not found
+ *           - `ACCESS_TOKEN_INVALID`: Access token invalid
+ *           - `USER_NOT_FOUND`: User not found
+ *           - `PASSWORD_NOT_FOUND`: Password not found
+ */
+const updatePassword = async (req, res) => {
+  const { password } = req.body
+  const auth = req.headers.authorization || ''
+  const accessToken = auth.startsWith('Bearer ') ? auth.split(' ')[1] : null
+
+  if (!accessToken) res.status(401).json({ code: 'ACCESS_TOKEN_NOT_FOUND' })
+
+  let userId = null
+  try {
+    const decodedJWT = jwt.verify(accessToken, process.env.JWT_SECRET, {
+      algorithms: ['HS256'],
+      issuer: process.env.JWT_ISS,
+      audience: process.env.JWT_ACCESS_AUD
+    })
+    userId = decodedJWT.userId
+  } catch (err) {
+    if (err.name === 'JsonWebTokenError') res.status(401).json({ code: 'ACCESS_TOKEN_INVALID' })
+  }
+
+  const hashedPassword = await argon2.hash(password, {
+    type: argon2.argon2d,
+    memoryCost: 64 * 1024,
+    timeCost: 1,
+    parallelism: 1
+  })
+
+  const [result] = await query(`
+    UPDATE users
+    SET password = ?
+    WHERE user_id = ?
+  `, [hashedPassword, userId])
+
+  if (result.affectedRows === 0) res.status(401).json({ code: 'USER_NOT_FOUND' })
+  if (!password) res.status(401).json({ code: 'PASSWORD_NOT_FOUND' })
+
+  return res.status(200).json({
+    status: 200,
+    code: 'SUCCESS',
+  })
+}
+
 export {
   signUp,
   login,
   logout,
-  refreshToken
+  refreshToken,
+  updatePassword
 }
