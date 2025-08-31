@@ -154,6 +154,41 @@ const login = async (req, res) => {
 
 /**
  * @openapi
+ * /api/v1/auth/logout:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Logout a user
+ *     description: Logout a user
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       '200':
+ *         description: "`SUCCESS`"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status: { type: number, example: 200 }
+ *                 code: { type: string, example: 'SUCCESS' }
+ *       '401':
+ *         description: |
+ *           - `REFRESH_TOKEN_NOT_FOUND`: Refresh token not found
+ */
+const logout = async (req, res) => {
+  const refreshToken = req.headers.authorization.split(' ')[1]
+
+  if (!refreshToken) res.status(401).json({ code: 'REFRESH_TOKEN_NOT_FOUND' })
+
+  res.status(200).json({
+    status: 200,
+    code: 'SUCCESS',
+  })
+}
+
+
+/**
+ * @openapi
  * /api/v1/auth/refresh-token:
  *   post:
  *     tags: [Auth]
@@ -216,5 +251,6 @@ const refreshToken = async (req, res) => {
 export {
   signUp,
   login,
+  logout,
   refreshToken
 }
