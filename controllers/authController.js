@@ -132,7 +132,7 @@ const login = async (req, res) => {
   )
 
   const refreshToken = jwt.sign(
-    { userId: user.user_id, email: user.email },
+    { userId: user.user_id, role: user.role },
     process.env.JWT_SECRET,
     {
       algorithm: 'HS256',
@@ -151,7 +151,70 @@ const login = async (req, res) => {
   })
 }
 
+
+/**
+ * @openapi
+ * /api/v1/auth/refresh-token:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Refresh a token
+ *     description: Refresh a token
+ *     security:
+ *       - bearerAuth: []
+ *
+ *     responses:
+ *       '200':
+ *         description: "`SUCCESS`"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status: { type: number, example: 200 }
+ *                 code: { type: string, example: 'SUCCESS' }
+ *                 message: { type: string }
+ *       '401':
+ *         description: |
+ *           - `REFRESH_TOKEN_NOT_FOUND`: Refresh token not found
+ *           - `REFRESH_TOKEN_EXPIRED`: Refresh token expired
+ *           - `REFRESH_TOKEN_INVALID`: Refresh token invalid
+ */
+const refreshToken = async (req, res) => {
+  const auth = req.headers.authorization || ''
+  const refreshToken = auth.startsWith('Bearer ') ? auth.split(' ')[1] : null
+
+  if(!refreshToken) res.status(401).json({ code: 'REFRESH_TOKEN_NOT_FOUND' })
+
+  try {
+    const decodedJWT = jwt.verify(refreshToken, process.env.JWT_SECRET, {
+      algorithms: ['HS256'],
+      issuer: process.env.JWT_ISS,
+      audience: process.env.JWT_REFRESH_AUD
+    })
+    const { userId, role } = decodedJWT
+
+    res.json({
+      status: 200,
+      code: 'SUCCESS',
+      accessToken: jwt.sign(
+        { userId, role },
+        process.env.JWT_SECRET,
+        {
+          algorithm: 'HS256',
+          expiresIn: '10m',
+          issuer: process.env.JWT_ISS,
+          audience: process.env.JWT_ACCESS_AUD
+        }
+      )
+    })
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') res.status(401).json({ code: 'REFRESH_TOKEN_EXPIRED' })
+    if (err.name === 'JsonWebTokenError') res.status(401).json({ code: 'REFRESH_TOKEN_INVALID' })
+  }
+}
+
 export {
   signUp,
-  login
+  login,
+  refreshToken
 }
