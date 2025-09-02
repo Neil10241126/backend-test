@@ -2,6 +2,9 @@ import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import { uuidv7 } from 'uuidv7';
 import query from '../db/pool.js';
+import type { RequestHandler } from 'express';
+import type { LoginSchema, SignUpSchema, UpdatePasswordSchema } from '../schemas/auth.ts';
+import type { ResultSetHeader, RowDataPacket } from 'mysql2';
 
 
 /**
@@ -38,7 +41,7 @@ import query from '../db/pool.js';
  *       '400':
  *         description: "`EMAIL_EXISTS`: Email already exists"
  */
-const signUp = async (req, res) => {
+const signUp: RequestHandler<unknown, any, SignUpSchema> = async (req, res) => {
   const { email, password, role, userName } = req.body
   const newUserId = uuidv7()
   const hashedPassword = await argon2.hash(password, {
@@ -49,7 +52,7 @@ const signUp = async (req, res) => {
   })
 
   try {
-    await query(`
+    await query<ResultSetHeader>(`
       INSERT INTO users (user_id, email, password, role, user_name)
       VALUES (?, ?, ?, ?, ?);
     `, [newUserId, email, hashedPassword, role, userName])
@@ -59,7 +62,7 @@ const signUp = async (req, res) => {
       code: 'CREATE_SUCCESS',
       message: 'User created successful',
     })
-  } catch (err) {
+  } catch (err: any) {
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({
         status: 400,
@@ -104,10 +107,10 @@ const signUp = async (req, res) => {
  *           - `EMAIL_NOT_FOUND`: Email not found
  *           - `PASSWORD_NOT_CORRECT`: Password not correct
  */
-const login = async (req, res) => {
+const login: RequestHandler<unknown, any, LoginSchema> = async (req, res) => {
   const { email, password } = req.body
 
-  const [rows] = await query(`
+  const [rows] = await query<RowDataPacket[]>(`
     SELECT user_id, email, password, role
     FROM users
     WHERE email = ?
@@ -118,11 +121,11 @@ const login = async (req, res) => {
   const user = rows[0]
   const ok = await argon2.verify(user.password, password)
 
-  if (!ok) res.status(401).json({  code: 'PASSWORD_NOT_CORRECT' })
+  if (!ok) return res.status(401).json({  code: 'PASSWORD_NOT_CORRECT' })
 
   const accessToken = jwt.sign(
     { userId: user.user_id, role: user.role },
-    process.env.JWT_SECRET,
+    process.env.JWT_SECRET!,
     {
       algorithm: 'HS256',
       expiresIn: '10m',
@@ -133,7 +136,7 @@ const login = async (req, res) => {
 
   const refreshToken = jwt.sign(
     { userId: user.user_id, role: user.role },
-    process.env.JWT_SECRET,
+    process.env.JWT_SECRET!,
     {
       algorithm: 'HS256',
       expiresIn: '7d',
@@ -175,8 +178,8 @@ const login = async (req, res) => {
  *         description: |
  *           - `REFRESH_TOKEN_NOT_FOUND`: Refresh token not found
  */
-const logout = async (req, res) => {
-  const refreshToken = req.headers.authorization.split(' ')[1]
+const logout: RequestHandler = async (req, res) => {
+  const refreshToken = req.headers.authorization?.split(' ')[1]
 
   if (!refreshToken) res.status(401).json({ code: 'REFRESH_TOKEN_NOT_FOUND' })
 
@@ -214,18 +217,19 @@ const logout = async (req, res) => {
  *           - `REFRESH_TOKEN_EXPIRED`: Refresh token expired
  *           - `REFRESH_TOKEN_INVALID`: Refresh token invalid
  */
-const refreshToken = async (req, res) => {
+const refreshToken: RequestHandler = async (req, res) => {
   const auth = req.headers.authorization || ''
   const refreshToken = auth.startsWith('Bearer ') ? auth.split(' ')[1] : null
 
-  if(!refreshToken) res.status(401).json({ code: 'REFRESH_TOKEN_NOT_FOUND' })
+  if(!refreshToken) return res.status(401).json({ code: 'REFRESH_TOKEN_NOT_FOUND' })
 
   try {
-    const decodedJWT = jwt.verify(refreshToken, process.env.JWT_SECRET, {
+    const decodedJWT = jwt.verify(refreshToken, process.env.JWT_SECRET!, {
       algorithms: ['HS256'],
       issuer: process.env.JWT_ISS,
       audience: process.env.JWT_REFRESH_AUD
-    })
+    }) as { userId: string, role: string }
+
     const { userId, role } = decodedJWT
 
     res.json({
@@ -233,7 +237,7 @@ const refreshToken = async (req, res) => {
       code: 'SUCCESS',
       accessToken: jwt.sign(
         { userId, role },
-        process.env.JWT_SECRET,
+        process.env.JWT_SECRET!,
         {
           algorithm: 'HS256',
           expiresIn: '10m',
@@ -242,7 +246,7 @@ const refreshToken = async (req, res) => {
         }
       )
     })
-  } catch (err) {
+  } catch (err: any) {
     if (err.name === 'TokenExpiredError') res.status(401).json({ code: 'REFRESH_TOKEN_EXPIRED' })
     if (err.name === 'JsonWebTokenError') res.status(401).json({ code: 'REFRESH_TOKEN_INVALID' })
   }
@@ -275,22 +279,23 @@ const refreshToken = async (req, res) => {
  *           - `USER_NOT_FOUND`: User not found
  *           - `PASSWORD_NOT_FOUND`: Password not found
  */
-const updatePassword = async (req, res) => {
+const updatePassword: RequestHandler<unknown, any, UpdatePasswordSchema> = async (req, res) => {
   const { password } = req.body
   const auth = req.headers.authorization || ''
   const accessToken = auth.startsWith('Bearer ') ? auth.split(' ')[1] : null
 
-  if (!accessToken) res.status(401).json({ code: 'ACCESS_TOKEN_NOT_FOUND' })
+  if (!accessToken) return res.status(401).json({ code: 'ACCESS_TOKEN_NOT_FOUND' })
 
   let userId = null
   try {
-    const decodedJWT = jwt.verify(accessToken, process.env.JWT_SECRET, {
+    const decodedJWT = jwt.verify(accessToken, process.env.JWT_SECRET!, {
       algorithms: ['HS256'],
       issuer: process.env.JWT_ISS,
       audience: process.env.JWT_ACCESS_AUD
-    })
+    }) as { userId: string, role: string }
+
     userId = decodedJWT.userId
-  } catch (err) {
+  } catch (err: any) {
     if (err.name === 'JsonWebTokenError') res.status(401).json({ code: 'ACCESS_TOKEN_INVALID' })
   }
 
@@ -301,7 +306,7 @@ const updatePassword = async (req, res) => {
     parallelism: 1
   })
 
-  const [result] = await query(`
+  const [result] = await query<ResultSetHeader>(`
     UPDATE users
     SET password = ?
     WHERE user_id = ?

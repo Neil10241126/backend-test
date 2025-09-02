@@ -1,7 +1,7 @@
-import swaggerJsDoc from 'swagger-jsdoc';
+import swaggerJsDoc, { type OAS3Options } from 'swagger-jsdoc';
 
 // Swagger configuration
-const options = {
+const options: OAS3Options = {
   definition: {
     openapi: '3.0.0',
     info: {
